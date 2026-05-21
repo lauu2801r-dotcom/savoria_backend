@@ -1,7 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+import shutil
+import uuid
+import os
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.articulos import models, schemas
+
+UPLOAD_DIR = "uploads/articulos"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+EXTENSIONES_PERMITIDAS = {"jpg", "jpeg", "png", "webp"}
 
 router = APIRouter()
 
@@ -49,6 +57,55 @@ def eliminar_articulo(articulo_id: int, db: Session = Depends(get_db)):
         models.Articulo.articulo_id == articulo_id).first()
     if not articulo:
         raise HTTPException(status_code=404, detail="Artículo no encontrado")
+    # Eliminar imagen local si existe
+    if articulo.imagen_url and articulo.imagen_url.startswith("/uploads/"):
+        ruta = articulo.imagen_url.lstrip("/")
+        if os.path.exists(ruta):
+            os.remove(ruta)
     db.delete(articulo)
     db.commit()
     return {"mensaje": "Artículo eliminado"}
+
+
+@router.post("/{articulo_id}/imagen", response_model=schemas.ArticuloRespuesta)
+def subir_imagen(
+    articulo_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    articulo = db.query(models.Articulo).filter(
+        models.Articulo.articulo_id == articulo_id).first()
+    if not articulo:
+        raise HTTPException(status_code=404, detail="Artículo no encontrado")
+
+    # Validar extensión
+    ext = file.filename.split(".")[-1].lower()
+    if ext not in EXTENSIONES_PERMITIDAS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Formato no permitido. Usa: {', '.join(EXTENSIONES_PERMITIDAS)}"
+        )
+
+    # Validar tamaño (máx 5MB)
+    file.file.seek(0, 2)
+    size = file.file.tell()
+    file.file.seek(0)
+    if size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen no puede superar 5MB")
+
+    # Eliminar imagen anterior si existía
+    if articulo.imagen_url and articulo.imagen_url.startswith("/uploads/"):
+        ruta_anterior = articulo.imagen_url.lstrip("/")
+        if os.path.exists(ruta_anterior):
+            os.remove(ruta_anterior)
+
+    # Guardar nueva imagen
+    filename = f"{uuid.uuid4()}.{ext}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    articulo.imagen_url = f"/uploads/articulos/{filename}"
+    db.commit()
+    db.refresh(articulo)
+    return articulo

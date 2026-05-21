@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.database import Base, engine
 from app.core.config import settings
+import os
 
 # Importar modelos para que Alembic los detecte
 from app.modules.clientes import models as clientes_models
@@ -13,6 +15,9 @@ from app.modules.clientes.router import router as clientes_router
 from app.modules.articulos.router import router as articulos_router
 from app.modules.facturas.router import router as facturas_router
 from app.modules.reportes.router import router as reportes_router
+
+# Crear carpeta de uploads si no existe
+os.makedirs("uploads/articulos", exist_ok=True)
 
 # Crear tablas
 Base.metadata.create_all(bind=engine)
@@ -30,6 +35,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Servir archivos estáticos (imágenes subidas)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Routers
 app.include_router(clientes_router, prefix="/clientes", tags=["Clientes"])

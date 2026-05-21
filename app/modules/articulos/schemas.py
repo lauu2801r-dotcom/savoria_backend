@@ -9,6 +9,11 @@ class ArticuloCrear(BaseModel):
     stock: int = 0
     codigo: Optional[str] = None
     categoria: Optional[str] = None
+    # En ArticuloCrear y ArticuloActualizar:
+    imagen_url: Optional[str] = None
+
+    # En ArticuloRespuesta:
+    imagen_url: Optional[str] = None
 
 
 class ArticuloActualizar(BaseModel):
@@ -18,7 +23,11 @@ class ArticuloActualizar(BaseModel):
     stock: Optional[int] = None
     codigo: Optional[str] = None
     categoria: Optional[str] = None
+      # En ArticuloCrear y ArticuloActualizar:
+    imagen_url: Optional[str] = None
 
+    # En ArticuloRespuesta:
+    imagen_url: Optional[str] = None
 
 class ArticuloRespuesta(BaseModel):
     articulo_id: int
@@ -28,6 +37,11 @@ class ArticuloRespuesta(BaseModel):
     stock: int
     codigo: Optional[str]
     categoria: Optional[str]
+      # En ArticuloCrear y ArticuloActualizar:
+    imagen_url: Optional[str] = None
+
+    # En ArticuloRespuesta:
+    imagen_url: Optional[str] = None
 
     class Config:
         from_attributes = True
