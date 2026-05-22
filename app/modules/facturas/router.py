@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.core.database import get_db
 from app.modules.facturas import models, schemas
 from app.modules.articulos.models import Articulo
@@ -11,8 +12,16 @@ IVA = 0.19
 
 
 def _generar_numero(db: Session) -> str:
-    total = db.query(models.Factura).count()
-    return f"FAC-{str(total + 1).zfill(4)}"
+    # Busca el número más alto ya usado para nunca repetir
+    ultimo = db.query(func.max(models.Factura.numero_factura)).scalar()
+    if ultimo is None:
+        siguiente = 1
+    else:
+        try:
+            siguiente = int(ultimo.split("-")[1]) + 1
+        except (IndexError, ValueError):
+            siguiente = db.query(models.Factura).count() + 1
+    return f"FAC-{str(siguiente).zfill(4)}"
 
 
 @router.get("/", response_model=list[schemas.FacturaRespuesta])

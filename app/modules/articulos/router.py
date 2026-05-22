@@ -57,7 +57,6 @@ def eliminar_articulo(articulo_id: int, db: Session = Depends(get_db)):
         models.Articulo.articulo_id == articulo_id).first()
     if not articulo:
         raise HTTPException(status_code=404, detail="Artículo no encontrado")
-    # Eliminar imagen local si existe
     if articulo.imagen_url and articulo.imagen_url.startswith("/uploads/"):
         ruta = articulo.imagen_url.lstrip("/")
         if os.path.exists(ruta):
@@ -99,13 +98,31 @@ def subir_imagen(
         if os.path.exists(ruta_anterior):
             os.remove(ruta_anterior)
 
-    # Guardar nueva imagen
+    # Guardar archivo en disco
     filename = f"{uuid.uuid4()}.{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    articulo.imagen_url = f"/uploads/articulos/{filename}"
-    db.commit()
-    db.refresh(articulo)
-    return articulo
+    # Guardar en BD con retry por si Neon cerró la conexión
+    nueva_url = f"/uploads/articulos/{filename}"
+    intentos = 3
+    for intento in range(intentos):
+        try:
+            db.expire_all()
+            articulo = db.query(models.Articulo).filter(
+                models.Articulo.articulo_id == articulo_id).first()
+            articulo.imagen_url = nueva_url
+            db.commit()
+            db.refresh(articulo)
+            return articulo
+        except Exception as e:
+            db.rollback()
+            if intento < intentos - 1:
+                continue
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            raise HTTPException(
+                status_code=500,
+                detail="Error al guardar en base de datos, intenta de nuevo"
+            )
