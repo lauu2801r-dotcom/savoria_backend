@@ -16,6 +16,15 @@ from app.modules.articulos.router import router as articulos_router
 from app.modules.facturas.router import router as facturas_router
 from app.modules.reportes.router import router as reportes_router
 
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI()
+
+# ← Agregar esta línea
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
 # Crear carpeta de uploads si no existe
 os.makedirs("uploads/articulos", exist_ok=True)
 
