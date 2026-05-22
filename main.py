@@ -5,30 +5,23 @@ from app.core.database import Base, engine
 from app.core.config import settings
 import os
 
-# Importar modelos para que Alembic los detecte
+# ── Modelos (para que SQLAlchemy cree las tablas) ──
 from app.modules.clientes import models as clientes_models
 from app.modules.articulos import models as articulos_models
 from app.modules.facturas import models as facturas_models
+from app.modules.auth import models as auth_models          # ← nuevo
 
-# Importar routers
+# ── Routers ──
 from app.modules.clientes.router import router as clientes_router
 from app.modules.articulos.router import router as articulos_router
 from app.modules.facturas.router import router as facturas_router
 from app.modules.reportes.router import router as reportes_router
-
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-
-app = FastAPI()
-
-# ← Agregar esta línea
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
+from app.modules.auth.router import router as auth_router   # ← nuevo
 
 # Crear carpeta de uploads si no existe
 os.makedirs("uploads/articulos", exist_ok=True)
 
-# Crear tablas
+# Crear tablas en BD
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -45,14 +38,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Servir archivos estáticos (imágenes subidas)
+# Archivos estáticos
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Routers
-app.include_router(clientes_router, prefix="/clientes", tags=["Clientes"])
-app.include_router(articulos_router, prefix="/articulos", tags=["Artículos"])
-app.include_router(facturas_router, prefix="/facturas", tags=["Facturas"])
-app.include_router(reportes_router, prefix="/reportes", tags=["Reportes"])
+app.include_router(auth_router,     prefix="/auth",      tags=["Auth"])
+app.include_router(clientes_router, prefix="/clientes",  tags=["Clientes"])
+app.include_router(articulos_router,prefix="/articulos", tags=["Artículos"])
+app.include_router(facturas_router, prefix="/facturas",  tags=["Facturas"])
+app.include_router(reportes_router, prefix="/reportes",  tags=["Reportes"])
 
 @app.get("/")
 def root():
